@@ -6,7 +6,11 @@ This code is for calculating Glm as defined in Gizon 2002, AN, 323, 251–253
 It is implemented with explicit limitation to l<=3
 
 # How to use
-Use cmake to compile into a build directory:
+[1] If not available install the libIntegrate library in the root directory: 
+       
+       git clone https://github.com/CD3/libIntegrate
+       
+[2] Use cmake to compile into a build directory:
 
        mkdir build
        cd build
