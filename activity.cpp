@@ -37,7 +37,7 @@ long double sph_norm2(const long double theta, const long double phi, const int 
 long double Alm_norm_gate(const long double theta, const long double phi, const int l, const int m, const long double theta0, const long double delta){
 	long double sph, Fmax;
   	VectorXd tmp(1),F;
-	sph=sph_norm(theta, phi, l, m);
+	sph=sph_norm(theta, phi, l,m);
   	tmp[0]=theta;
     F=gate_filter(tmp, theta0, delta);
     return sph*F[0];
@@ -181,6 +181,7 @@ long double gauss_filter_cte_2pi(const long double theta0, const long double del
 	return F.maxCoeff();
 }
 
+/*
 long double Glm(const int l, const int m, const long double theta_min, const long double theta_max){
 	_2D::GQ::GaussLegendreQuadrature<double,64> integrate;
 	//_2D::GQ::GaussLegendreQuadrature<double,16> integrate;
@@ -198,28 +199,40 @@ long double Glm(const int l, const int m, const long double theta_min, const lon
 	}
 	return r;
 }
+*/
+
+long double integrate_Alm_gate(const int l, const int m, const long double theta0, const long double delta){
+	_2D::GQ::GaussLegendreQuadrature<double,64> integrate;
+	const long double theta_min=theta0-delta/2; // Default for ftype='gate'
+	const long double theta_max=theta0+delta/2;
+	const long double phi_min=0;
+	const long double phi_max=2.*M_PI;
+	const int dummy =0;
+	long double r;
+	if (delta != 0){
+			r = integrate(sph_norm2, theta_min, theta_max, phi_min, phi_max, l, m, dummy, dummy);
+	} else{
+		r=0; // When delta is 0, obviously the result is 0
+	}
+	return r;
+}
 
 long double Alm(const int l, const int m, const long double theta0, const long double delta, std::string ftype){
 
 	_2D::GQ::GaussLegendreQuadrature<double,64> integrate;
 	//_2D::GQ::GaussLegendreQuadrature<double,16> integrate;
-	long double theta_min=theta0-delta/2; // Default for ftype='gate'
-	long double theta_max=theta0+delta/2;
-
-	//const long double delta_limit=0.001;
+	const long double theta_min=0; // Default for ftype='gate'
+	const long double theta_max=M_PI;
 	const long double phi_min=0;
 	const long double phi_max=2.*M_PI;
-	//const long double theta_min=0;
-	//const long double theta_max=M_PI;
 
 	long double r;
 	if (std::abs(m)<=l){
 		if (ftype == "gate"){
-			r=integrate(Alm_norm_gate, theta_min, theta_max, phi_min, phi_max, l, m, theta0, delta);
+			r=integrate_Alm_gate(l, m, theta0, delta); //A function that integrate directly using Ylm (no filtering, which is faster)
+			r=2*r; // Accouting for the North + South Emisphere
 		}
 		if (ftype == "gauss"){
-			theta_min=0;
-			theta_max=M_PI;
 			r=integrate(Alm_norm_gauss, theta_min, theta_max, phi_min, phi_max, l, m, theta0, delta);
 		}
 	} else{
@@ -229,78 +242,27 @@ long double Alm(const int l, const int m, const long double theta0, const long d
 	return r;
 }
 
-/*
-// Mini test to compare filtering Alm and Glm 
-int main(void){
-	double r, Alm_norm;
-	const double theta0=M_PI/2;
-	const double delta=M_PI/6;
-	const double theta_min=theta0-delta/2;
-	const double theta_max=theta0+delta/2;
+long double Alm_deg(const int l, const int m, const long double theta0, const long double delta, std::string ftype){
 
-	Alm_norm=gauss_filter_cte(theta0, delta);
-	std::cout << "Glm and Alm: " << std::endl;
-	for (int l=1; l<=2; l++){
-		for (int m=-l;m<=l; m++){
-			r=Glm(l, m, theta_min, theta_max);
-			std::cout << "Glm(l=" << l << ", m=" << m << ") = " << r << std::endl;
-			r=Alm(l, m, theta0, delta, "gate");
-			std::cout << "Alm_gate(l=" << l << ", m=" << m << ") = " << r << std::endl;
-			r=Alm(l, m, theta0, delta, "gauss");
-			std::cout << "Alm_gauss(l=" << l << ", m=" << m << ") = " << r/Alm_norm << std::endl;
-			std::cout << " --- " << std::endl;
-		}	
-	}
-}
-*/
+	_2D::GQ::GaussLegendreQuadrature<double,64> integrate;
+	//_2D::GQ::GaussLegendreQuadrature<double,16> integrate;
+	const long double theta_min=0; // Default for ftype='gate'
+	const long double theta_max=M_PI;
+	const long double phi_min=0;
+	const long double phi_max=2.*M_PI;
 
-/*
-int main(void){
-	const double delta = M_PI/6;
-	const double theta0= M_PI/2;
-	VectorXd theta(1);
-	VectorXd F;
-	double Fmax;
-	Fmax=gauss_filter_cte(theta0, delta);
-	for (int i=0; i<=20; i++){
-		theta[0]=i*M_PI/20;
-		//F=gate_filter(theta, theta0, delta);
-		F=gauss_filter(theta, theta0, delta);
-		std::cout << "theta : " << theta << "     F=" << F/Fmax << std::endl;
-	}
-}
-*/
-
- // For Debug 
-/*
-int main(void){
-	long double theta_min=0.;
-	long double theta_max=M_PI/4.;
-	const int lmax=3;
-	int l, m;
 	long double r;
-	std::cout << "Integral:" << std::endl;
-	std::cout << "    - Polar band of activity:" << std::endl;
-	for (l=0; l<=lmax; l++){
-		for (m=-l; m<=l;m++){
-			r=0;
-			r=Glm(l, m, theta_min, theta_max);
-			std::cout << "(" << l << "," << m << ") :" << r << std::endl;
+	if (std::abs(m)<=l){
+		if (ftype == "gate"){
+			r=integrate_Alm_gate(l, m, theta0*M_PI/180., delta*M_PI/180.); //A function that integrate directly using Ylm (no filtering, which is faster)
+			r=2*r; // Accouting for the North + South Emisphere
 		}
-		std::cout << " --- " << std::endl;
-	}
-	theta_min=0. + M_PI/2 - M_PI/4/2;
-	theta_max=0. + M_PI/2 + M_PI/4/2;
-	std::cout << "    - Equatorial band of activity:" << std::endl;
-	for (l=0; l<=lmax; l++){
-		for (m=-l; m<=l;m++){
-			r=0;
-			//r=Glm(l, m, theta_min, theta_max);
-			std::cout << "(" << l << "," << m << ") :" << r << std::endl;
+		if (ftype == "gauss"){
+			r=integrate(Alm_norm_gauss, theta_min, theta_max, phi_min, phi_max, l, m, theta0*M_PI/180., delta*M_PI/180.);
 		}
-		std::cout << " --- " << std::endl;
+	} else{
+		r=-10;
+		std::cout << "Alm Error: -l<m<l not respected. Will return -10" << std::endl;
 	}
-
+	return r;
 }
-*/
-
