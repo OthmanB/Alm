@@ -7,8 +7,11 @@ But can be used to have more flexible activity zone hypothesis than that paper.
 # How to use
 Use cmake to compile into a build directory:
        'mkdir build'
+       
        'cd build'
+       
        'cmake ..'
+       
        'make'
 
 This will generate an executable with parameters as per defined into the main() of ylm.cpp
