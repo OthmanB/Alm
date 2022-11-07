@@ -1,4 +1,4 @@
-# integrate Glm~F(theta, phi).|Ylm|^2
+# integrate Alm~F(theta, phi).|Ylm|^2
 Small program for integrating Glm(theta, phi), term that can be used to define activity effect on mode splittings. It uses modified functions taken from https://github.com/CD3/libIntegrate to perform integration in C++ using Gaussian Legendre Quadrature
 
 This code can calculate Glm as defined in Gizon 2002, AN, 323, 251–253
