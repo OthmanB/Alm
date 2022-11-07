@@ -15,7 +15,7 @@ Use cmake to compile into a build directory:
        
        make
 
-This will generate an executable with parameters as per defined into the main() of ylm.cpp
+This will generate an executable with parameters as per defined into the main() of main.cpp
 
 
 Othman Benomar
