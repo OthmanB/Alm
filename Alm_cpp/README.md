@@ -18,8 +18,13 @@ Use cmake to compile into a build directory:
        make
 
 This will generate two executables in the ../bin directory.
+
 The Alm executable computes the integral with parameters as per defined into the main() of main.cpp 
-The Filter_Alm returns a file with the shape of the filter, for the user-defined parameters (as defined by the get_filter.cpp program). 
-This is more a test program to evaluate if the filtering is properly made (see python routines in ../python_rendering).
+
+The Filter_Alm returns a file with the shape of the filter, for the user-defined parameters (as defined by the get_filter.cpp program). This is more a test program to evaluate if the filtering is properly made (see python routines in ../python_rendering).
+
+The make_Alm_grids allows you to generate grids in the format required to perform interpolations with https://github.com/OthmanB/2D_interp. This grid is also a required component for the TAMCMC code : https://github.com/OthmanB/TAMCMC-C
+
+Additional functions in python are used to cross-verify that everything behave properly. 
 
 Othman Benomar
