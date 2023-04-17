@@ -89,7 +89,7 @@ GridData loadGridData(const string& filename) {
 }
 
 
-double interpolate(const GridData& data, double x, double y) {
+double interpolate(const GridData& data, double x, double y){
     int nx = data.x.size();
     int ny = data.y.size();
     // Create arrays with 2D data points
@@ -104,7 +104,6 @@ double interpolate(const GridData& data, double x, double y) {
     }
     for (int j = 0; j < ny; j++) {
         for (int i = 0; i < nx; i++) {
-            //zdata[j * nx + i] = data.z[i][j];
             zdata[j * nx + i] = data.z[j][i];
         }
     }

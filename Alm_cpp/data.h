@@ -24,3 +24,17 @@ struct GridData {
     int n_rows;
     int n_cols;
 };
+
+// Faster retrieval, but fix structure limited to lmax=3
+struct GridData_Alm_fast{
+    bool error;
+    GridData A10; // stores l=1, m=0
+    GridData A11; // stores l=1, m=+/-1
+    GridData A20; // stores l=2, m=0
+    GridData A21; // stores l=2, m=+/-1
+    GridData A22; // stores l=2, m=+/-2
+    GridData A30; // stores l=3, m=0
+    GridData A31; // stores l=3, m=+/-1
+    GridData A32; // stores l=3, m=+/-2
+    GridData A33; // stores l=3, m=+/-3    
+};

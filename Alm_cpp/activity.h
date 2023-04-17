@@ -19,7 +19,6 @@ long double sph_norm2(const long double theta, const long double phi, const int 
 long double integrate_Alm_gate(const int l, const int m, const long double theta0, const long double delta);
 long double Alm(const int l, const int m, const long double theta0, const long double delta, std::string ftype); // theta0 and  delta provided in radian here
 long double Alm_deg(const int l, const int m, const long double theta0, const long double delta, std::string ftype); // theta0 and delta provided in degress here
-long double Alm_interp(const int l, const int m, const long double theta0, const long double delta, std::string ftype, std::string grid_dir); // Use interplation over precomputed grids to compute Alm
 //
 long double Alm_norm_gate(const long double theta, const long double phi, const int l, const int m, const long double theta0, const long double delta);
 long double Alm_norm_gauss(const long double theta, const long double phi, const int l, const int m, const long double theta0, const long double delta);

@@ -11,6 +11,7 @@
 #include "do_grids.h"
 #include "gzip_compress.h"
 #include "bilinear_interpol.h"
+#include "Alm_interpol.h"
 
 using namespace std;
 
@@ -35,30 +36,7 @@ int rem_grids(const std::string dir_to_rem){
     }
     return 1;
 }
-/*
-void show_matrix_Alm(GridData_Alm grid, int m){
-        int l=(grid.Alm_grid.size()-1)/2;
-        // Show the matrix for debug
-        std::cout << std::setw(22);
-        for (int j=0; j<grid.delta.size(); j++){
-            std::cout<< grid.delta[j] << std::setw(14);
-        }
-        std::cout << std::endl << std::setw(21) << "j=  ";
-        for (int j=0; j<grid.delta.size(); j++){
-            std::cout << j << std::setw(14);
-        }
-        std::cout << std::endl;
-        for (int i=0; i< grid.theta.size();i++){
-            for (int j=0; j<grid.delta.size();j++){
-                if (j==0){
-                    std::cout << grid.theta[i] << "  i=" << i << "  ";
-                }
-                std::cout  << grid.Alm_grid[m+l][j][i] << std::setw(14);
-            }
-            std::cout << std::endl;
-        }
-}
-*/
+
 void show_matrix_Alm(GridData_Alm grid, int m){
         int l=(grid.Alm_grid.size()-1)/2;
         // Show the matrix for debug
@@ -453,7 +431,6 @@ TEST(Alm_interpTest, testValidInputs_gate_case) {
 }
 
 
-
 // The grid approach has a problem in gauss case
 /*
 TEST(Alm_interpTest, testValidInputs_gauss_case) {
@@ -505,7 +482,6 @@ TEST(Alm_interpTest, testValidInputs_gauss_case) {
 }
 */
 
-// -------- Test for the Alm interpolation ----
 TEST(Alm_interpTest, testValidInputs_triangle_case) {
     // directory with test grid files: achieves errors smaller than 3e-2 (test on 1000 samples)
     //const std::string grid_dir = "../../../data/Alm_grids_CPP/test_grids/"; 
@@ -549,6 +525,158 @@ TEST(Alm_interpTest, testValidInputs_triangle_case) {
             //EXPECT_NEAR(expected_output, interp_output, 3e-2);  // Pass Threshold for 5 deg grids
         } else{
              EXPECT_NEAR(expected_output, interp_output, 1e-1);    // Pass Threshold for 2 deg grids           
+        }
+    }
+}
+
+//
+
+// -------- Test for the Alm fast interpolation ----
+TEST(LoadAllDataTest, invalidDir){
+    const std::string grid_dir = "../../../data/Alm_grids_CPP/test_grids/";
+    const std::string ftype = "no_exist";
+    GridData_Alm_fast result = loadAllData(grid_dir, ftype);
+    EXPECT_TRUE(result.error);
+}
+
+
+TEST(LoadAllDataTest, validInput){
+    const std::string grid_dir = "../../../data/Alm_grids_CPP/test_grids/";
+    const std::string ftype = "gate";
+    GridData_Alm_fast result = loadAllData(grid_dir, ftype);
+    EXPECT_FALSE(result.error);
+    EXPECT_GT(result.A10.z.size(), 0);
+    EXPECT_GT(result.A11.z.size(), 0);
+    EXPECT_GT(result.A20.z.size(), 0);
+    EXPECT_GT(result.A21.z.size(), 0);
+    EXPECT_GT(result.A22.z.size(), 0);
+    EXPECT_GT(result.A30.z.size(), 0);
+    EXPECT_GT(result.A31.z.size(), 0);
+    EXPECT_GT(result.A32.z.size(), 0);
+    EXPECT_GT(result.A33.z.size(), 0);
+    /*
+    if(result.error == false){
+        std::cout << "   -----  A10 ----- " << std::endl;
+        show_matrix(result.A10);
+        std::cout << "   -----  A11 ----- " << std::endl;
+        show_matrix(result.A11);
+        std::cout << "   -----  A20 ----- " << std::endl;
+        show_matrix(result.A20);
+        std::cout << "   -----  A21 ----- " << std::endl;
+        show_matrix(result.A21);
+        std::cout << "   -----  A22 ----- " << std::endl;
+        show_matrix(result.A22);
+        std::cout << "   -----  A30 ----- " << std::endl;
+        show_matrix(result.A30);
+        std::cout << "   -----  A31 ----- " << std::endl;
+        show_matrix(result.A31);
+        std::cout << "   -----  A32 ----- " << std::endl;
+        show_matrix(result.A32);
+        std::cout << "   -----  A33 ----- " << std::endl;
+        show_matrix(result.A33);
+    }
+    */
+}
+
+
+TEST(Alm_interp4iterTest, testValidInputs_gate_case) {
+    // directory with test grid files: achieves errors smaller than 3e-2 (test on 1000 samples)
+   //const std::string grid_dir = "../../../data/Alm_grids_CPP/test_grids/"; 
+    //
+    // directory with test grid files: achieves errors guaranteed to be lower than 9e-3 (test on 1000 samples)
+    const std::string grid_dir = "../../../data/Alm_grids_CPP/2deg_grids/"; 
+    //
+    // directory with test grid files: achieves 2e-3 errors (test on 500 samples)
+    //const std::string grid_dir = "../../../data/Alm_grids_CPP/1deg_grids/"; 
+    //
+    const std::string ftype="gate";
+    const int lmax=3;
+    const int Niter=50; // total number of random tests
+    // Test valid inputs and check if the function returns the expected output
+    int l; // some input value
+    int m; // some input value
+    long double theta0; // some input value
+    long double delta; // some input value
+    long double interp_output;
+    long double expected_output;
+    //
+    // We prepare the grids...
+    GridData_Alm_fast grids=loadAllData(grid_dir, ftype);
+    //
+    // Property based testing to verify that the interpolation is precise enough on a grid
+    for(int iter=0; iter<Niter;iter++){
+        l=random_int(1,lmax);
+        m=random_int(-l,l);
+        theta0=random_double(0, M_PI/2);
+        delta=random_double(0, M_PI/4);
+        interp_output = Alm_interp_iter(l, m, theta0, delta, ftype, grids); // approximation function
+        expected_output= Alm(l, m, theta0, delta, ftype); // full integral computation
+        // Compare. The tolerance depends on the sparsity of the grid and of the interpolation algo
+        std::cout << "["<<iter<<"]         l = " << l;
+        std::cout << "         m = " << m;
+        std::cout << "    theta0 = " << theta0;
+        std::cout << "    delta  = " << delta << std::endl;
+        
+        std::cout << "    interp =" << interp_output << 
+            "     expected = " << expected_output << 
+            "    diff    =" << 1-interp_output/expected_output << std::endl;
+        if (expected_output >= 1e-4){ // If the output is expected to be >> 0 then tolerance is stict 
+            //EXPECT_NEAR(expected_output, interp_output, 6e-3); // Pass Threshold for 1 deg grids
+            EXPECT_NEAR(expected_output, interp_output, 1.5e-2);    // Pass Threshold for 2 deg grids
+            //EXPECT_NEAR(expected_output, interp_output, 3e-2);  // Pass Threshold for 5 deg grids
+        } else{ // If the output is expected to be very small, we don't need a high tolerance
+            EXPECT_NEAR(expected_output, interp_output, 1e-1);  
+        }
+    }
+}
+
+TEST(Alm_interp4iterTest, testValidInputs_triangle_case) {
+    // directory with test grid files: achieves errors smaller than 3e-2 (test on 1000 samples)
+   //const std::string grid_dir = "../../../data/Alm_grids_CPP/test_grids/"; 
+    //
+    // directory with test grid files: achieves errors guaranteed to be lower than 9e-3 (test on 1000 samples)
+    const std::string grid_dir = "../../../data/Alm_grids_CPP/2deg_grids/"; 
+    //
+    // directory with test grid files: achieves 2e-3 errors (test on 500 samples)
+    //const std::string grid_dir = "../../../data/Alm_grids_CPP/1deg_grids/"; 
+    //
+    const std::string ftype="triangle";
+    const int lmax=3;
+    const int Niter=50; // total number of random tests
+    // Test valid inputs and check if the function returns the expected output
+    int l; // some input value
+    int m; // some input value
+    long double theta0; // some input value
+    long double delta; // some input value
+    long double interp_output;
+    long double expected_output;
+    //
+    // We prepare the grids...
+    GridData_Alm_fast grids=loadAllData(grid_dir, ftype);
+    //
+    // Property based testing to verify that the interpolation is precise enough on a grid
+    for(int iter=0; iter<Niter;iter++){
+        l=random_int(1,lmax);
+        m=random_int(-l,l);
+        theta0=random_double(0, M_PI/2);
+        delta=random_double(0, M_PI/4);
+        interp_output = Alm_interp_iter(l, m, theta0, delta, ftype, grids); // approximation function
+        expected_output= Alm(l, m, theta0, delta, ftype); // full integral computation
+        // Compare. The tolerance depends on the sparsity of the grid and of the interpolation algo
+        std::cout << "["<<iter<<"]         l = " << l;
+        std::cout << "         m = " << m;
+        std::cout << "    theta0 = " << theta0;
+        std::cout << "    delta  = " << delta << std::endl;
+        
+        std::cout << "    interp =" << interp_output << 
+            "     expected = " << expected_output << 
+            "    diff    =" << 1-interp_output/expected_output << std::endl;
+        if (expected_output >= 1e-4){ // If the output is expected to be >> 0 then tolerance is stict 
+            //EXPECT_NEAR(expected_output, interp_output, 6e-3); // Pass Threshold for 1 deg grids
+            EXPECT_NEAR(expected_output, interp_output, 1.5e-2);    // Pass Threshold for 2 deg grids
+            //EXPECT_NEAR(expected_output, interp_output, 3e-2);  // Pass Threshold for 5 deg grids
+        } else{ // If the output is expected to be very small, we don't need a high tolerance
+            EXPECT_NEAR(expected_output, interp_output, 1e-1);  
         }
     }
 }
