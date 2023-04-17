@@ -171,19 +171,69 @@ int core_test(const std::string& ftype, const std::string& grid_dir, const int N
 int main(){
     const int Niter = 1000;
     const int lmax = 2;
-    std::string ftype;
+   int error;
+   std::string ftype;
     std::string grid_dir;
     std::string grid_resol;
-    ftype="gate";
-    //grid_dir = "../../../data/Alm_grids_CPP/2deg_grids/";  // 2 degree resolution grid. Errors at 9e-3 max
     grid_dir = "../../../data/Alm_grids_CPP/test_grids/";  // 2 degree resolution grid. Errors at 9e-3 max
-    grid_resol="2 degrees";
+    grid_resol="5 degrees";
+    ftype="gate";
     std::cout << " Requested Niter = " << Niter << std::endl;
     std::cout << "           lmax  = " << lmax  << std::endl;
     std::cout << "----------------------- Testing ------------------------" << std::endl;
     std::cout << "--------         Activity shape  " << ftype << "----------------- " << std::endl;
     std::cout << "--------         Grid Resolution " << grid_resol << "------------- " << std::endl;
     std::cout << "--------------------------------------------------------" << std::endl;
-    int error=core_test(ftype, grid_dir, Niter, lmax);
+    error=core_test(ftype, grid_dir, Niter, lmax);
+    //
+    ftype="triangle";
+    std::cout << " Requested Niter = " << Niter << std::endl;
+    std::cout << "           lmax  = " << lmax  << std::endl;
+    std::cout << "----------------------- Testing ------------------------" << std::endl;
+    std::cout << "--------         Activity shape  " << ftype << "----------------- " << std::endl;
+    std::cout << "--------         Grid Resolution " << grid_resol << "------------- " << std::endl;
+    std::cout << "--------------------------------------------------------" << std::endl;
+    error=core_test(ftype, grid_dir, Niter, lmax);
+    //
+    grid_dir = "../../../data/Alm_grids_CPP/2deg_grids/";  // 2 degree resolution grid. Errors at 9e-3 max
+    grid_resol="2 degrees";
+    ftype="gate";
+    std::cout << " Requested Niter = " << Niter << std::endl;
+    std::cout << "           lmax  = " << lmax  << std::endl;
+    std::cout << "----------------------- Testing ------------------------" << std::endl;
+    std::cout << "--------         Activity shape  " << ftype << "----------------- " << std::endl;
+    std::cout << "--------         Grid Resolution " << grid_resol << "------------- " << std::endl;
+    std::cout << "--------------------------------------------------------" << std::endl;
+    error=core_test(ftype, grid_dir, Niter, lmax);
+    //
+    ftype="triangle";
+    std::cout << " Requested Niter = " << Niter << std::endl;
+    std::cout << "           lmax  = " << lmax  << std::endl;
+    std::cout << "----------------------- Testing ------------------------" << std::endl;
+    std::cout << "--------         Activity shape  " << ftype << "----------------- " << std::endl;
+    std::cout << "--------         Grid Resolution " << grid_resol << "------------- " << std::endl;
+    std::cout << "--------------------------------------------------------" << std::endl;
+    error=core_test(ftype, grid_dir, Niter, lmax);
+
+    grid_dir = "../../../data/Alm_grids_CPP/1deg_grids/";  // 2 degree resolution grid. Errors at 9e-3 max
+    grid_resol="1 degrees";
+    ftype="gate";
+    std::cout << " Requested Niter = " << Niter << std::endl;
+    std::cout << "           lmax  = " << lmax  << std::endl;
+    std::cout << "----------------------- Testing ------------------------" << std::endl;
+    std::cout << "--------         Activity shape  " << ftype << "----------------- " << std::endl;
+    std::cout << "--------         Grid Resolution " << grid_resol << "------------- " << std::endl;
+    std::cout << "--------------------------------------------------------" << std::endl;
+    error=core_test(ftype, grid_dir, Niter, lmax);
+    //
+    ftype="triangle";
+    std::cout << " Requested Niter = " << Niter << std::endl;
+    std::cout << "           lmax  = " << lmax  << std::endl;
+    std::cout << "----------------------- Testing ------------------------" << std::endl;
+    std::cout << "--------         Activity shape  " << ftype << "----------------- " << std::endl;
+    std::cout << "--------         Grid Resolution " << grid_resol << "------------- " << std::endl;
+    std::cout << "--------------------------------------------------------" << std::endl;
+    error=core_test(ftype, grid_dir, Niter, lmax);
+
     return error;
 }
