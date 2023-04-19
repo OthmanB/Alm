@@ -20,3 +20,6 @@ using namespace std;
 
 GridData loadGridData(const string& filename);
 double interpolate(const GridData& data, double x, double y);
+gsl_interp2d* init_2dgrid(const GridData4gsl& data_flatten);
+double interpolate_core(gsl_interp2d* interp, const GridData4gsl& data_flatten, double x, double y);
+GridData4gsl flatten_grid(const GridData& data);

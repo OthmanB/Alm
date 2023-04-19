@@ -87,45 +87,59 @@ GridData loadGridData(const string& filename) {
 	}
     return data;
 }
-
-
-double interpolate(const GridData& data, double x, double y){
-    int nx = data.x.size();
-    int ny = data.y.size();
-    // Create arrays with 2D data points
-    double* xdata = new double[nx];
-    double* ydata = new double[ny];
-    double* zdata = new double[nx * ny];
-    for (int i = 0; i < nx; i++) {
-        xdata[i] = data.x[i];
+ 
+GridData4gsl flatten_grid(const GridData& data){
+    GridData4gsl newGrid;
+    newGrid.nx= data.x.size();
+    newGrid.ny = data.y.size();
+    newGrid.x= new double[newGrid.nx];
+    newGrid.y= new double[newGrid.ny];
+    newGrid.z = new double[newGrid.nx * newGrid.ny];
+    for (int i = 0; i < newGrid.nx; i++) {
+        newGrid.x[i] = data.x[i];
     }
-    for (int j = 0; j < ny; j++) {
-        ydata[j] = data.y[j];
+    for (int j = 0; j < newGrid.ny; j++) {
+        newGrid.y[j] = data.y[j];
     }
-    for (int j = 0; j < ny; j++) {
-        for (int i = 0; i < nx; i++) {
-            zdata[j * nx + i] = data.z[j][i];
+    for (int j = 0; j < newGrid.ny; j++) {
+        for (int i = 0; i < newGrid.nx; i++) {
+            newGrid.z[j * newGrid.nx + i] = data.z[j][i];
         }
     }
+    return newGrid; 
+}
+
+gsl_interp2d* init_2dgrid(const GridData4gsl& data_flatten){
     // Initialize interp2d object
     //const gsl_interp2d_type* T = gsl_interp2d_bilinear;//gsl_interp2d_bicubic;
     const gsl_interp2d_type* T = gsl_interp2d_bicubic;
-    gsl_interp2d* interp = gsl_interp2d_alloc(T, nx, ny);
-    gsl_interp2d_init(interp, xdata, ydata, zdata, nx, ny);
-    
-    // Evaluate interpolated value
+    gsl_interp2d* interp = gsl_interp2d_alloc(T, data_flatten.nx, data_flatten.ny);
+    gsl_interp2d_init(interp, data_flatten.x, data_flatten.y, data_flatten.z, data_flatten.nx, data_flatten.ny);
+    return interp;
+}
+
+// Interpolation for most cases (no within large loop calls)
+double interpolate_core(gsl_interp2d* interp, const GridData4gsl& data_flatten, double x, double y){
     double result;
     gsl_interp_accel* xacc = gsl_interp_accel_alloc();
     gsl_interp_accel* yacc = gsl_interp_accel_alloc();
-    gsl_interp2d_eval_e(interp, xdata, ydata, zdata, x, y, xacc, yacc, &result);
     
-    // Free resources
-    delete[] xdata;
-    delete[] ydata;
-    delete[] zdata;
-    gsl_interp2d_free(interp);
+    gsl_interp2d_eval_e(interp, data_flatten.x, data_flatten.y, data_flatten.z, x, y, xacc, yacc, &result);    
     gsl_interp_accel_free(xacc);
     gsl_interp_accel_free(yacc);
-    
     return result;
+}
+
+// Interpolation for most cases (no within large loop calls)
+double interpolate(const GridData& data, double x, double y){
+    GridData4gsl data_flatten=flatten_grid(data);
+    gsl_interp2d* interp=init_2dgrid(data_flatten);
+    double r=interpolate_core(interp, data_flatten, x, y);
+    // Free resources
+    delete[] data_flatten.x;
+    delete[] data_flatten.y;
+    delete[] data_flatten.z;
+    gsl_interp2d_free(interp);
+    // Evaluate interpolated value
+    return r;
 }

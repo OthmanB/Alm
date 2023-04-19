@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <gsl/gsl_interp2d.h>
 
 // Define a struct to hold grid data
 struct GridData_Alm {
@@ -37,4 +38,38 @@ struct GridData_Alm_fast{
     GridData A31; // stores l=3, m=+/-1
     GridData A32; // stores l=3, m=+/-2
     GridData A33; // stores l=3, m=+/-3    
+};
+
+ // Flat grid for direct inputs to gsl_interp2d_eval_e
+ // This avoids to flatten the array at every iteration in an
+ // iterative call of interpolate
+struct GridData4gsl {
+    double* x;
+    double* y;
+    double* z;
+    int nx;
+    int ny;
+};
+
+// structure containing the gsl initialised grid functions
+// This is similar to GridData_Alm_fast but with the gsl function instead of the matrix
+struct gsl_funcs{
+    gsl_interp2d* interp_A10;
+    gsl_interp2d* interp_A11;
+    gsl_interp2d* interp_A20;
+    gsl_interp2d* interp_A21;
+    gsl_interp2d* interp_A22;
+    gsl_interp2d* interp_A30;
+    gsl_interp2d* interp_A31;
+    gsl_interp2d* interp_A32;
+    gsl_interp2d* interp_A33;
+    GridData4gsl flat_grid_A10;
+    GridData4gsl flat_grid_A11;
+    GridData4gsl flat_grid_A20;
+    GridData4gsl flat_grid_A21;
+    GridData4gsl flat_grid_A22;
+    GridData4gsl flat_grid_A30;
+    GridData4gsl flat_grid_A31;
+    GridData4gsl flat_grid_A32;
+    GridData4gsl flat_grid_A33;   
 };

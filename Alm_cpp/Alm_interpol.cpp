@@ -1,32 +1,9 @@
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
 #include "bilinear_interpol.h"
-//#include "Alm_interpol.h"
-
-/*
-void show_mat(GridData grid){
-        int l=(grid.z.size()-1)/2;
-        // Show the matrix for debug
-        std::cout << std::setw(22);
-        for (int i=0; i<grid.x.size(); i++){
-            std::cout << grid.x[i] << std::setw(14);
-        }
-        std::cout << std::endl << std::setw(21) << "i=  ";
-        for (int i=0; i<grid.x.size(); i++){
-            std::cout << i << std::setw(14);
-        }
-        std::cout << std::endl;
-        for (int j=0; j<grid.y.size(); j++){
-            for (int i=0; i<grid.x.size(); i++){
-                if (i==0){
-                    std::cout << grid.y[j] << "  j=" << j << "  ";
-                }
-                std::cout << grid.z[j][i] << std::setw(14);
-            }
-            std::cout << std::endl;
-        }
-}
-*/
+#include <algorithm>
+#include <vector>
 
 // Function that load all grids for l=1 to lmax in order 
 // to be used by Alm_interp_fast
@@ -104,7 +81,9 @@ GridData_Alm_fast loadAllData(const std::string grid_dir, const std::string ftyp
 }
 
 // Use interpolation over precomputed grids to compute Alm
-double Alm_interp(const int l, const int m, const long double theta0, const long double delta, const std::string ftype, const std::string grid_dir){
+double Alm_interp(const int l, const int m, 
+                const long double theta0, const long double delta, 
+                const std::string ftype, const std::string grid_dir){
     if (l <= 0){
         std::cerr << "Error : The function Alm_interp() does not allow l<=0. " << std::endl;
         return -9998;
@@ -120,7 +99,7 @@ double Alm_interp(const int l, const int m, const long double theta0, const long
 		GridData data = loadGridData(file_gz);
 		//show_mat(data);
 		// Interpolation
-		double c = interpolate(data, theta0, delta);
+         double c = interpolate(data, theta0, delta);
 		//std::cout << "Interpolated value at (" << theta0 << ", " << delta << ") = " << c << '\n';
 		return c;
 	}
@@ -140,8 +119,11 @@ double Alm_interp(const int l, const int m, const long double theta0, const long
 // should contain all of the table A10, A11 etc... in a preset way. This allows much faster calls 
 // to the interpolation compared to Alm_interp as the function does not need to unpack the gz file
 // It will be particularly usefull if Alm must be calculated in a loop
-// However, it is limited to lmax=3
-double Alm_interp_iter(const int l, const int m, const long double theta0, const long double delta, const std::string ftype, GridData_Alm_fast grids){
+// However, it is limited to lmax=3 
+// boost::math::bicubic_b_spline<double>& interp, 
+double Alm_interp_iter(
+                        const int l, const int m, const long double theta0, const long double delta, 
+                        const std::string ftype, GridData_Alm_fast grids){
 	const int lmax=3;
     int lm;
     double c;
@@ -201,6 +183,170 @@ double Alm_interp_iter(const int l, const int m, const long double theta0, const
 	}
 	return -9999;
 }
+
+// The fastest possible: Does not take the grid but the gsl object that contain the initialised grid
+double Alm_interp_iter_preinitialised(
+                        const int l, const int m, const long double theta0, const long double delta, 
+                        const std::string ftype, gsl_funcs interp_funcs){
+	const int lmax=3;
+    int lm;
+    double c;
+    if (l <= 0){
+        std::cerr << "Error : The function Alm_interp() does not allow l<=0. " << std::endl;
+        return -9998;
+    }	
+    if (l > lmax){
+        std::cerr << "Error : The function Alm_interp4iter() is not suitable for lmax>3. " << std::endl;
+        std::cerr << "        Please use Alm_interp() instead" << std::endl;
+        return -9998;
+    }
+	try{
+        lm = 10*l + std::abs(m); // m=-1 or +1 have the same results, hence the abs(m)
+        switch(lm){
+            // Interpolation on a case by case basis
+            case 10:
+                        /*std::cout << "    flat_grid_A10.x = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A10.nx;kl++){
+                            std::cout  << interp_funcs.flat_grid_A10.x[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl << "    flat_grid_A10.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A10.ny;kl++){
+                            std::cout  << interp_funcs.flat_grid_A10.y[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl;*/
+                c = interpolate_core(interp_funcs.interp_A10, interp_funcs.flat_grid_A10, theta0, delta);
+                //std::cout << " ===----> " << c << std::endl;
+                break;
+            case 11:
+                        /*std::cout << "    flat_grid_A11.x = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A11.nx;kl++){
+                            std::cout  << interp_funcs.flat_grid_A11.x[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl << "    flat_grid_A11.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A11.ny;kl++){
+                            std::cout  << interp_funcs.flat_grid_A11.y[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl;*/
+                c = interpolate_core(interp_funcs.interp_A11, interp_funcs.flat_grid_A11, theta0, delta);
+                //std::cout << " ===----> " << c << std::endl;
+                break;
+            case 20:
+                        /*std::cout << "    flat_grid_A20.x = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A20.nx;kl++){
+                            std::cout  << interp_funcs.flat_grid_A20.x[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl << "    flat_grid_A20.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A20.ny;kl++){
+                            std::cout  << interp_funcs.flat_grid_A20.y[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl;*/
+                c = interpolate_core(interp_funcs.interp_A20, interp_funcs.flat_grid_A20, theta0, delta);
+                //std::cout << " ===----> " << c << std::endl;
+                break;
+            case 21:
+                        /*std::cout << "    flat_grid_A21.x = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A21.nx;kl++){
+                            std::cout  << interp_funcs.flat_grid_A21.x[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl << "    flat_grid_A21.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A21.ny;kl++){
+                            std::cout  << interp_funcs.flat_grid_A21.y[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl;*/
+                c = interpolate_core(interp_funcs.interp_A21, interp_funcs.flat_grid_A21, theta0, delta);
+                //std::cout << " ===----> " << c << std::endl;
+                break;
+            case 22:
+                        /*std::cout << std::endl << "    flat_grid_A22.x = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A22.nx;kl++){
+                            std::cout  << interp_funcs.flat_grid_A22.x[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl << "    flat_grid_A22.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A22.ny;kl++){
+                            std::cout  << interp_funcs.flat_grid_A22.y[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl;*/
+                c = interpolate_core(interp_funcs.interp_A22, interp_funcs.flat_grid_A22, theta0, delta);
+                //std::cout << " ===----> " << c << std::endl;
+                break;
+            case 30:
+                        /*std::cout << std::endl << "    flat_grid_A30.x = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A30.nx;kl++){
+                            std::cout  << interp_funcs.flat_grid_A30.x[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout <<  std::endl << "    flat_grid_A30.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A30.ny;kl++){
+                            std::cout  << interp_funcs.flat_grid_A30.y[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl;*/
+                c = interpolate_core(interp_funcs.interp_A30, interp_funcs.flat_grid_A30, theta0, delta);
+                //std::cout << " ===----> " << c << std::endl;
+                break;
+            case 31:
+                        /*std::cout << std::endl << "    flat_grid_A31.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A31.nx;kl++){
+                            std::cout  << interp_funcs.flat_grid_A31.x[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout <<  std::endl << "    flat_grid_A31.y = ";
+                        std::cout.flush();
+                        for(int kl=0; kl<interp_funcs.flat_grid_A31.ny;kl++){
+                            std::cout  << interp_funcs.flat_grid_A31.y[kl] << "  ";
+                            std::cout.flush();
+                        }
+                        std::cout << std::endl;*/
+                c = interpolate_core(interp_funcs.interp_A31, interp_funcs.flat_grid_A31, theta0, delta);
+                //std::cout << " ===----> " << c << std::endl;
+                break;
+            case 32:
+                c = interpolate_core(interp_funcs.interp_A32, interp_funcs.flat_grid_A32, theta0, delta);
+                break;
+            case 33:
+                c = interpolate_core(interp_funcs.interp_A33, interp_funcs.flat_grid_A33, theta0, delta);
+                break;
+            default:
+                std::cerr << "Invalid lm combination" << std::endl;
+                return -9998;
+        }
+		//std::cout << "Interpolated value at (" << theta0 << ", " << delta << ") = " << c << '\n';
+		return c;
+	}
+	catch (exception& e) {
+		cerr << "Error: " << e.what() << "\n";
+		return -8888;
+	}
+	catch (...) {
+		cerr << "Exception of unknown type!\n";
+		return -9999;
+	}
+	return -9999;
+}
+
 
 /*
 // A quick test
