@@ -1,6 +1,7 @@
 #include <boost/math/special_functions/spherical_harmonic.hpp>
 #include <Eigen/Dense>
 #include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <ctime>
 #include <chrono>
@@ -34,7 +35,7 @@ double random_double(double min, double max) {
   return distr(gen);
 }
 
-std::string Alm_test(const int l, const double theta0, const double delta, const std::string ftype, const std::string grid_dir, const GridData_Alm_fast grids, const uint8_t use_grids) {
+std::string Alm_test(const int l, const double theta0, const double delta, const std::string ftype, const std::string grid_dir, const GridData_Alm_fast grids, const gsl_funcs interp_funcs,  const uint8_t use_grids) {
 	const long double delta_limit=0.001, theta0_limit=M_PI;
 	double r, Alm_norm;
     std::string str;
@@ -67,7 +68,17 @@ std::string Alm_test(const int l, const double theta0, const double delta, const
                         return "0";
 	                }
                 }
-                if (use_grids > 2){
+                if (use_grids == 3){ 
+                    try{
+                        //std::cout << "interp_funcs ( " << l << " , " << m << " )" << std::endl;
+                        r=Alm_interp_iter_preinitialised(l, m, theta0, delta, ftype, interp_funcs); // interpolation on a provided preload grid
+                    }
+                    catch (exception& e) {
+		                std::cerr << "Error: " << e.what() << "\n";
+                        return "0";
+	                }
+                }                
+                if (use_grids > 3){
                         std::cerr << "Error: use_grids must be either 0 (no grid), 1 (on-disk grid) or 2 (with a preloaded grid)" << std::endl;
                         return "0";
                     }                    
@@ -102,16 +113,36 @@ int core_test(const std::string& ftype, const std::string& grid_dir, const int N
     double theta0, delta;
     auto start = std::chrono::high_resolution_clock::now();
     GridData_Alm_fast grids=loadAllData(grid_dir, ftype);
-    //
     std::string out;
+    // Pre-initialisation of the grid into gsl : Flattening + gsl init
+    gsl_funcs funcs_data;
+    funcs_data.flat_grid_A10=flatten_grid(grids.A10);
+    funcs_data.flat_grid_A11=flatten_grid(grids.A11);
+    funcs_data.flat_grid_A20=flatten_grid(grids.A20);
+    funcs_data.flat_grid_A21=flatten_grid(grids.A21);
+    funcs_data.flat_grid_A22=flatten_grid(grids.A22);
+    funcs_data.flat_grid_A30=flatten_grid(grids.A30);
+    funcs_data.flat_grid_A31=flatten_grid(grids.A31);
+    funcs_data.flat_grid_A32=flatten_grid(grids.A32);
+    funcs_data.flat_grid_A33=flatten_grid(grids.A33);
+    funcs_data.interp_A10=init_2dgrid(funcs_data.flat_grid_A10);
+    funcs_data.interp_A11=init_2dgrid(funcs_data.flat_grid_A11);
+    funcs_data.interp_A20=init_2dgrid(funcs_data.flat_grid_A20);
+    funcs_data.interp_A21=init_2dgrid(funcs_data.flat_grid_A21);
+    funcs_data.interp_A22=init_2dgrid(funcs_data.flat_grid_A22);
+    funcs_data.interp_A30=init_2dgrid(funcs_data.flat_grid_A30);
+    funcs_data.interp_A31=init_2dgrid(funcs_data.flat_grid_A31);
+    funcs_data.interp_A32=init_2dgrid(funcs_data.flat_grid_A32);
+    funcs_data.interp_A33=init_2dgrid(funcs_data.flat_grid_A33);
     
+    start = std::chrono::high_resolution_clock::now();
     std::cout << " - Direct method... ";
     use_grids=0;
     for (int i = 0; i < Niter; i++) {
         l = random_int(1, lmax);
         theta0 = random_double(theta_min, theta_max);
         delta = random_double(delta_min, delta_max);
-        out=Alm_test(l, theta0, delta, ftype, "", grids, use_grids);
+        out=Alm_test(l, theta0, delta, ftype, "", grids, funcs_data, use_grids);
         // Show iteration count every Nshow
         if (i % Nshow == 0) {
             std::cout << i << "...";
@@ -129,7 +160,7 @@ int core_test(const std::string& ftype, const std::string& grid_dir, const int N
         l = random_int(1, lmax);
         theta0 = random_double(theta_min, theta_max);
         delta = random_double(delta_min, delta_max);
-        out=Alm_test(l, theta0, delta, ftype, grid_dir, grids, use_grids);
+        out=Alm_test(l, theta0, delta, ftype, grid_dir, grids,funcs_data, use_grids);
         // Show iteration count every Nshow
         if (i % Nshow == 0) {
             std::cout << i << "...";
@@ -140,14 +171,14 @@ int core_test(const std::string& ftype, const std::string& grid_dir, const int N
     stop = std::chrono::high_resolution_clock::now();
     auto durationB = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
 
-    std::cout << " - Fast Interpolation method (grids stored in memory)... ";
+    std::cout << " - Fast Interpolation method (grids stored in memory at each iteration)... ";
     start = std::chrono::high_resolution_clock::now();
     use_grids=2;
     for (int i = 0; i < Niter; i++) {
         l = random_int(1, lmax);
         theta0 = random_double(theta_min, theta_max);
         delta = random_double(delta_min, delta_max);
-        out=Alm_test(l, theta0, delta, ftype, grid_dir, grids, use_grids);
+        out=Alm_test(l, theta0, delta, ftype, grid_dir, grids, funcs_data, use_grids);
         // Show iteration count every Nshow
         if (i % Nshow == 0) {
             std::cout << i << "...";
@@ -158,12 +189,32 @@ int core_test(const std::string& ftype, const std::string& grid_dir, const int N
     stop = std::chrono::high_resolution_clock::now();
     auto durationC = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
 
+    std::cout << " - Fastest Interpolation method (grids stored in memory + preflattened + preloaded in GSL)... " << std::endl;
+    start = std::chrono::high_resolution_clock::now();
+    use_grids=3;
+    for (int i = 0; i < Niter; i++) {
+        l = random_int(1, lmax);
+        theta0 = random_double(theta_min, theta_max);
+        delta = random_double(delta_min, delta_max);
+        out=Alm_test(l, theta0, delta, ftype, grid_dir, grids, funcs_data, use_grids);
+        // Show iteration count every Nshow
+        if (i % Nshow == 0) {
+            std::cout << i << "...";
+            std::cout.flush();
+        }
+    }
+    std::cout << std::endl;
+    stop = std::chrono::high_resolution_clock::now();
+    auto durationD = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
     // Output the results
-    std::cout << "      Duration Alm               " << durationA << std::endl;
-    std::cout << "      Duration Alm_interp        " << durationB << std::endl;
-    std::cout << "      Duration Alm_interp_iter   " << durationC << std::endl;
-    std::cout << "      Alm_interp      " << std::fixed << std::setprecision(2) << (static_cast<double>(durationA)/durationB) << " faster than computing Alm directly " << std::endl;  // fixed: used std::fixed and std::setprecision to output the percentage with exactly 2 decimal places, and casted durationB to double to avoid integer division
-    std::cout << "      Alm_interp_iter " << std::fixed << std::setprecision(2) << (static_cast<double>(durationA)/durationC) << " faster than computing Alm directly " << std::endl;  // fixed: used std::fixed and std::setprecision to output the percentage with exactly 2 decimal places, and casted durationB to double to avoid integer division
+    std::cout << "      Duration Alm                              " << durationA << std::endl;
+    std::cout << "      Duration Alm_interp                       " << durationB << std::endl;
+    std::cout << "      Duration Alm_interp_iter                  " << durationC << std::endl;
+    std::cout << "      Duration Alm_interp_iter_preinitialised   " << durationD << std::endl;
+    std::cout << "      Alm_interp                     " << std::fixed << std::setprecision(2) << (static_cast<double>(durationA)/durationB) << " faster than computing Alm directly " << std::endl;  // fixed: used std::fixed and std::setprecision to output the percentage with exactly 2 decimal places, and casted durationB to double to avoid integer division
+    std::cout << "      Alm_interp_iter                " << std::fixed << std::setprecision(2) << (static_cast<double>(durationA)/durationC) << " faster than computing Alm directly " << std::endl;  // fixed: used std::fixed and std::setprecision to output the percentage with exactly 2 decimal places, and casted durationB to double to avoid integer division
+    std::cout << "      Alm_interp_iter_preinitialised " << std::fixed << std::setprecision(2) << (static_cast<double>(durationA)/durationD) << " faster than computing Alm directly " << std::endl;  // fixed: used std::fixed and std::setprecision to output the percentage with exactly 2 decimal places, and casted durationB to double to avoid integer division
     return 0;
 }
 

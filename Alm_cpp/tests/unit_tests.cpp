@@ -289,7 +289,11 @@ TEST(make_Alm_grid, invalidInputs) {
 // Tests for do_grids.cpp
 TEST(MakeGridsTest, ValidInputs) {
     // test with valid input values and filter type
-    char* argv[] = {"prog_name", "--resol=0.1", "--lmax=3", "--ftype=gate",  "--verbose=false"};
+    char* argv[] = {const_cast<char*>("prog_name"),
+            const_cast<char*>("--resol=0.1"),
+            const_cast<char*>("--lmax=3"), 
+            const_cast<char*>("--ftype=gate"),  
+            const_cast<char*>("--verbose=false")};
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     EXPECT_EQ(do_grids(argc, argv), 0);
@@ -298,7 +302,11 @@ TEST(MakeGridsTest, ValidInputs) {
 
 TEST(MakeGridsTest, InvalidInputs) {
     // test with invalid input values for resol and filter type
-    char* argv[] = {"prog_name", "--resol=-0.1", "--lmax=3", "--ftype=invalid_type",  "--verbose=false"};
+    char* argv[] = {const_cast<char*>("prog_name"), 
+            const_cast<char*>("--resol=-0.1"), 
+            const_cast<char*>("--lmax=3"), 
+            const_cast<char*>("--ftype=invalid_type"),  
+            const_cast<char*>("--verbose=false")};
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     EXPECT_EQ(do_grids(argc, argv), 1);
@@ -306,7 +314,12 @@ TEST(MakeGridsTest, InvalidInputs) {
 
 TEST(MakeGridsTest, SaveGrid) {
     // test the ability to save the generated grid data
-    char* argv[] = {"prog_name", "--outdir=grid_dir", "--resol=0.1", "--lmax=3", "--ftype=gate",  "--verbose=false"};
+    char* argv[] = {const_cast<char*>("prog_name"), 
+            const_cast<char*>("--outdir=grid_dir"), 
+            const_cast<char*>("--resol=0.1"), 
+            const_cast<char*>("--lmax=3"), 
+            const_cast<char*>("--ftype=gate"),  
+            const_cast<char*>("--verbose=false")};
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     EXPECT_EQ(do_grids(argc, argv), 0);
@@ -315,7 +328,12 @@ TEST(MakeGridsTest, SaveGrid) {
 
 TEST(MakeGridsTest, UnexpectedError) {
     // test for unexpected error such as insufficient disk space
-    char* argv[] = {"prog_name", "--outdir=/", "--resol=0.1", "--lmax=3", "--ftype=gate",  "--verbose=false"};
+    char* argv[] = {const_cast<char*>("prog_name"), 
+            const_cast<char*>("--outdir=/"), 
+            const_cast<char*>("--resol=0.1"), 
+            const_cast<char*>("--lmax=3"), 
+            const_cast<char*>("--ftype=gate"),  
+            const_cast<char*>("--verbose=false")};
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     EXPECT_EQ(do_grids(argc, argv), 1);
@@ -661,6 +679,147 @@ TEST(Alm_interp4iterTest, testValidInputs_triangle_case) {
         theta0=random_double(0, M_PI/2);
         delta=random_double(0, M_PI/4);
         interp_output = Alm_interp_iter(l, m, theta0, delta, ftype, grids); // approximation function
+        expected_output= Alm(l, m, theta0, delta, ftype); // full integral computation
+        // Compare. The tolerance depends on the sparsity of the grid and of the interpolation algo
+        std::cout << "["<<iter<<"]         l = " << l;
+        std::cout << "         m = " << m;
+        std::cout << "    theta0 = " << theta0;
+        std::cout << "    delta  = " << delta << std::endl;
+        
+        std::cout << "    interp =" << interp_output << 
+            "     expected = " << expected_output << 
+            "    diff    =" << 1-interp_output/expected_output << std::endl;
+        if (expected_output >= 1e-4){ // If the output is expected to be >> 0 then tolerance is stict 
+            //EXPECT_NEAR(expected_output, interp_output, 6e-3); // Pass Threshold for 1 deg grids
+            EXPECT_NEAR(expected_output, interp_output, 1.5e-2);    // Pass Threshold for 2 deg grids
+            //EXPECT_NEAR(expected_output, interp_output, 3e-2);  // Pass Threshold for 5 deg grids
+        } else{ // If the output is expected to be very small, we don't need a high tolerance
+            EXPECT_NEAR(expected_output, interp_output, 1e-1);  
+        }
+    }
+}
+
+TEST(Alm_interp4iter_initialisedTest, testValidInputs_gate_case) {
+    // directory with test grid files: achieves errors smaller than 3e-2 (test on 1000 samples)
+   //const std::string grid_dir = "../../../data/Alm_grids_CPP/test_grids/"; 
+    //
+    // directory with test grid files: achieves errors guaranteed to be lower than 9e-3 (test on 1000 samples)
+    //const std::string grid_dir = "../../../data/Alm_grids_CPP/2deg_grids/"; 
+    //
+    // directory with test grid files: achieves 2e-3 errors (test on 500 samples)
+    const std::string grid_dir = "../../../data/Alm_grids_CPP/1deg_grids/"; 
+    //
+    const std::string ftype="gate";
+    const int lmax=3;
+    const int Niter=50; // total number of random tests
+    // Test valid inputs and check if the function returns the expected output
+    int l; // some input value
+    int m; // some input value
+    long double theta0; // some input value
+    long double delta; // some input value
+    long double interp_output;
+    long double expected_output;
+    //
+    // We prepare the grids...
+    GridData_Alm_fast grids=loadAllData(grid_dir, ftype);
+    // Pre-initialisation of the grid into gsl : Flattening + gsl init
+    gsl_funcs funcs_data;
+    funcs_data.flat_grid_A10=flatten_grid(grids.A10);
+    funcs_data.flat_grid_A11=flatten_grid(grids.A11);
+    funcs_data.flat_grid_A20=flatten_grid(grids.A20);
+    funcs_data.flat_grid_A21=flatten_grid(grids.A21);
+    funcs_data.flat_grid_A22=flatten_grid(grids.A22);
+    funcs_data.flat_grid_A30=flatten_grid(grids.A30);
+    funcs_data.flat_grid_A31=flatten_grid(grids.A31);
+    funcs_data.flat_grid_A32=flatten_grid(grids.A32);
+    funcs_data.flat_grid_A33=flatten_grid(grids.A33);
+    funcs_data.interp_A10=init_2dgrid(funcs_data.flat_grid_A10);
+    funcs_data.interp_A11=init_2dgrid(funcs_data.flat_grid_A11);
+    funcs_data.interp_A20=init_2dgrid(funcs_data.flat_grid_A20);
+    funcs_data.interp_A21=init_2dgrid(funcs_data.flat_grid_A21);
+    funcs_data.interp_A22=init_2dgrid(funcs_data.flat_grid_A22);
+    funcs_data.interp_A30=init_2dgrid(funcs_data.flat_grid_A30);
+    funcs_data.interp_A31=init_2dgrid(funcs_data.flat_grid_A31);
+    funcs_data.interp_A32=init_2dgrid(funcs_data.flat_grid_A32);
+    funcs_data.interp_A33=init_2dgrid(funcs_data.flat_grid_A33);
+    
+    // Property based testing to verify that the interpolation is precise enough on a grid
+    for(int iter=0; iter<Niter;iter++){
+        l=random_int(1,lmax);
+        m=random_int(-l,l);
+        theta0=random_double(0, M_PI/2);
+        delta=random_double(0, M_PI/4);
+        interp_output = Alm_interp_iter_preinitialised(l, m, theta0, delta, ftype, funcs_data); // approximation function
+        expected_output= Alm(l, m, theta0, delta, ftype); // full integral computation
+        // Compare. The tolerance depends on the sparsity of the grid and of the interpolation algo
+        std::cout << "["<<iter<<"]         l = " << l;
+        std::cout << "         m = " << m;
+        std::cout << "    theta0 = " << theta0;
+        std::cout << "    delta  = " << delta << std::endl;
+        
+        std::cout << "    interp =" << interp_output << 
+            "     expected = " << expected_output << 
+            "    diff    =" << 1-interp_output/expected_output << std::endl;
+        if (expected_output >= 1e-4){ // If the output is expected to be >> 0 then tolerance is stict 
+            //EXPECT_NEAR(expected_output, interp_output, 6e-3); // Pass Threshold for 1 deg grids
+            EXPECT_NEAR(expected_output, interp_output, 1.5e-2);    // Pass Threshold for 2 deg grids
+            //EXPECT_NEAR(expected_output, interp_output, 3e-2);  // Pass Threshold for 5 deg grids
+        } else{ // If the output is expected to be very small, we don't need a high tolerance
+            EXPECT_NEAR(expected_output, interp_output, 1e-1);  
+        }
+    }
+}
+
+TEST(Alm_interp4iter_initialisedTest, testValidInputs_triangle_case) {
+    // directory with test grid files: achieves errors smaller than 3e-2 (test on 1000 samples)
+   //const std::string grid_dir = "../../../data/Alm_grids_CPP/test_grids/"; 
+    //
+    // directory with test grid files: achieves errors guaranteed to be lower than 9e-3 (test on 1000 samples)
+    //const std::string grid_dir = "../../../data/Alm_grids_CPP/2deg_grids/"; 
+    //
+    // directory with test grid files: achieves 2e-3 errors (test on 500 samples)
+    const std::string grid_dir = "../../../data/Alm_grids_CPP/1deg_grids/"; 
+    //
+    const std::string ftype="triangle";
+    const int lmax=3;
+    const int Niter=50; // total number of random tests
+    // Test valid inputs and check if the function returns the expected output
+    int l; // some input value
+    int m; // some input value
+    long double theta0; // some input value
+    long double delta; // some input value
+    long double interp_output;
+    long double expected_output;
+    //
+    // We prepare the grids...
+    GridData_Alm_fast grids=loadAllData(grid_dir, ftype);
+    // Pre-initialisation of the grid into gsl : Flattening + gsl init
+    gsl_funcs funcs_data;
+    funcs_data.flat_grid_A10=flatten_grid(grids.A10);
+    funcs_data.flat_grid_A11=flatten_grid(grids.A11);
+    funcs_data.flat_grid_A20=flatten_grid(grids.A20);
+    funcs_data.flat_grid_A21=flatten_grid(grids.A21);
+    funcs_data.flat_grid_A22=flatten_grid(grids.A22);
+    funcs_data.flat_grid_A30=flatten_grid(grids.A30);
+    funcs_data.flat_grid_A31=flatten_grid(grids.A31);
+    funcs_data.flat_grid_A32=flatten_grid(grids.A32);
+    funcs_data.flat_grid_A33=flatten_grid(grids.A33);
+    funcs_data.interp_A10=init_2dgrid(funcs_data.flat_grid_A10);
+    funcs_data.interp_A11=init_2dgrid(funcs_data.flat_grid_A11);
+    funcs_data.interp_A20=init_2dgrid(funcs_data.flat_grid_A20);
+    funcs_data.interp_A21=init_2dgrid(funcs_data.flat_grid_A21);
+    funcs_data.interp_A22=init_2dgrid(funcs_data.flat_grid_A22);
+    funcs_data.interp_A30=init_2dgrid(funcs_data.flat_grid_A30);
+    funcs_data.interp_A31=init_2dgrid(funcs_data.flat_grid_A31);
+    funcs_data.interp_A32=init_2dgrid(funcs_data.flat_grid_A32);
+    funcs_data.interp_A33=init_2dgrid(funcs_data.flat_grid_A33);
+    // Property based testing to verify that the interpolation is precise enough on a grid
+    for(int iter=0; iter<Niter;iter++){
+        l=random_int(1,lmax);
+        m=random_int(-l,l);
+        theta0=random_double(0, M_PI/2);
+        delta=random_double(0, M_PI/4);
+        interp_output = Alm_interp_iter_preinitialised(l, m, theta0, delta, ftype, funcs_data); // approximation function
         expected_output= Alm(l, m, theta0, delta, ftype); // full integral computation
         // Compare. The tolerance depends on the sparsity of the grid and of the interpolation algo
         std::cout << "["<<iter<<"]         l = " << l;

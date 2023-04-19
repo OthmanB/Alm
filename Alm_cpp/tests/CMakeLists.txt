@@ -17,6 +17,7 @@ link_directories(${Boost_LIBRARY_DIRS})
 find_package(GTest REQUIRED)
 find_package(GSL REQUIRED)
 
+
 #Look for eigen and explicitly specify to use it. EIGEN3_INCLUDE_DIR Must be specified in the bashrc
 include_directories( "$ENV{EIGEN3_INCLUDE_DIR}" )
 # Add the gtest include directory to the project
@@ -35,6 +36,16 @@ set(SOURCES  #_COMMON
     ../Alm_interpol.cpp
     )
 
+set(SOURCES_TIME
+    ../Alm_interpol.cpp 
+    ../bilinear_interpol.cpp
+    ../string_handler.cpp
+    ../linspace.cpp
+    ../activity.cpp
+    ../GaussLegendre1D.hpp
+    ../GaussLegendre2D.hpp
+    )
+
 # Add the executable target and include the source files and header files needed
 add_executable(test_all unit_tests.cpp ${SOURCES})
 # Add the Google Test framework library to the project by linking it to the executable
@@ -46,3 +57,11 @@ set_target_properties(test_all PROPERTIES
 # Add a command to run the tests using CTest
 include(GoogleTest)
 gtest_discover_tests(test_all)
+
+# Speed tests executable
+add_executable(test_speed computation_time_tests.cpp ${SOURCES_TIME})
+# Add the Google Test framework library to the project by linking it to the executable
+target_link_libraries(test_speed ${Boost_LIBRARIES} ${GSL_LIBRARY} ${GSL_CBLAS_LIBRARY} )
+# Set the output directory for the test binary
+set_target_properties(test_speed PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/test_bin")
